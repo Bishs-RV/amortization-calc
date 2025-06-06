@@ -126,8 +126,8 @@
       <div class="form-group">
         <label for="age">Age:</label>
         <select id="age" name="age" required>
-          <option value="85+">85+ Years Old</option>
           <option value="Under85">Under 85 Years Old</option>
+          <option value="85+">85+ Years Old</option>
         </select>
       </div>
 
@@ -142,11 +142,6 @@
           <option value="single">Single</option>
           <option value="joint">Joint</option>
         </select>
-      </div>
-
-      <div class="form-group">
-        <label for="downPayment">Down Payment:</label>
-        <input type="text" id="downPayment" name="downPayment" required placeholder="$0">
       </div>
 
       <div class="form-group">
@@ -199,7 +194,7 @@
       }
     }
 
-    ['income', 'downPayment', 'unitPrice'].forEach(id => {
+    ['income', 'unitPrice'].forEach(id => {
       const el = document.getElementById(id);
       el.addEventListener('focus', () => {
         el.value = el.value.replace(/\$/g, '').replace(/,/g, '');
@@ -228,7 +223,6 @@
         income: parseFloat(form.income.value.replace(/[^\d.-]/g, '')) || 0,
         filing: form.filing.value, // "single" or "joint"
         unitPrice: parseFloat(form.unitPrice.value.replace(/[^\d.-]/g, '')),
-        downPayment: parseFloat(form.downPayment.value.replace(/[^\d.-]/g, '')),
         rate: parseFloat(form.interestRate.value.replace(/[^\d.-]/g, '')) / 100,
         termYears: parseInt(form.loanTerm.value)
       };
@@ -247,7 +241,7 @@
       actualSavings += 10000;
     }
 
-      const principal = data.unitPrice - data.downPayment;
+      const principal = data.unitPrice;
       let balance = principal;
       const yearlySchedule = [];
 
@@ -258,7 +252,7 @@
        //                     (Math.pow(1 + monthlyRate, totalMonths) - 1);
 
       // Core Inputs
-      const P = data.unitPrice - data.downPayment;   // Principal loan amount
+      const P = data.unitPrice;   // Principal loan amount
       const r = data.rate / 12;                      // Monthly interest rate (decimal form)
       const n = data.termYears * 12;                 // Total loan term in months
 
@@ -324,9 +318,11 @@
 
 
       let table = '<table><tr><th>Year</th><th>Yearly Interest</th><th>Savings</th></tr>';
-      yearlySchedule.slice(0, 4).forEach(row => {
+      yearlySchedule
+        .filter(row => row.calendarYear >= 2025 && row.calendarYear <= 2028)
+        .forEach(row => {
         table += `<tr>
-          <td>${row.year}</td>
+        <td>${row.calendarYear}</td>
           <td>$${row.yearlyInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td>$${row.appliedSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         </tr>`;
