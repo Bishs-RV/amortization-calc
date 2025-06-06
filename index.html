@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RV Loan Amortization Calculator</title>
+  <style>
+    :root {
+      --bish-gold: #9d8954;
+      --bish-black: #111111;
+      --bish-gray: #f4f4f4;
+      --bish-white: #ffffff;
+      --bish-blue: #005B66;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: var(--bish-gray);
+      color: var(--bish-black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      background: var(--bish-white);
+      padding: 20px;
+      box-sizing: border-box;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: var(--bish-blue);
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--bish-black);
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      text-align: left;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    input[type="text"] {
+      font-family: monospace;
+    }
+
+    button {
+      background-color: var(--bish-blue);
+      color: var(--bish-white);
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background-color: #007c8a;
+    }
+
+    .download-btn {
+      background-color: transparent;
+      border: 1px solid var(--bish-blue);
+      color: var(--bish-blue);
+      padding: 6px 10px;
+      font-size: 0.9rem;
+      font-weight: normal;
+      width: auto;
+      display: inline-block;
+      margin-top: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .download-btn:hover {
+      background-color: var(--bish-blue);
+      color: var(--bish-white);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: right;
+    }
+
+    th {
+      background-color: var(--bish-blue);
+      color: var(--bish-white);
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="inputPage">
+    <h2>RV Loan Amortization Calculator</h2>
+    <form id="loanForm">
+
+      <div class="form-group">
+        <label for="age">Age:</label>
+        <select id="age" name="age" required>
+          <option value="85+">85+ Years Old</option>
+          <option value="Under85">Under 85 Years Old</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="income">Annual Income:</label>
+        <input type="text" id="income" name="income" required placeholder="$0">
+      </div>
+
+      <div class="form-group">
+        <label for="filing">Filing Status:</label>
+        <select id="filing" name="filing" required>
+          <option value="single">Single</option>
+          <option value="joint">Joint</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="downPayment">Down Payment:</label>
+        <input type="text" id="downPayment" name="downPayment" required placeholder="$0">
+      </div>
+
+      <div class="form-group">
+        <label for="unitPrice">Unit Price:</label>
+        <input type="text" id="unitPrice" name="unitPrice" required placeholder="$0">
+      </div>
+
+      <div class="form-group">
+        <label for="interestRate">Interest Rate:</label>
+        <small><i>(Please Input Whole Number to Represent Percentage)</i></small>
+        <input type="text" id="interestRate" name="interestRate" required placeholder="0%">
+      </div>
+
+      <div class="form-group">
+        <label for="loanTerm">Loan Term (years):</label>
+        <input type="number" id="loanTerm" name="loanTerm" required placeholder="0">
+      </div>
+
+      <button type="submit">Continue to Schedule</button>
+    </form>
+  </div>
+
+  <div class="container" id="schedulePage" style="display: none;">
+    <h2>Amortization Schedule</h2>
+    <div id="scheduleOutput"></div>
+    <button onclick="goBack()">Back</button>
+  </div>
+
+  <script>
+    const form = document.getElementById('loanForm');
+    const inputPage = document.getElementById('inputPage');
+    const schedulePage = document.getElementById('schedulePage');
+    const output = document.getElementById('scheduleOutput');
+
+    function formatCurrencyInput(input) {
+      let value = input.value.replace(/[^\d]/g, '');
+      if (value) {
+        input.value = '$' + Number(value).toLocaleString();
+      } else {
+        input.value = '';
+      }
+    }
+
+    function formatPercentInput(input) {
+      let value = input.value.replace(/[^\d.]/g, '');
+      if (value) {
+        input.value = value + '%';
+      } else {
+        input.value = '';
+      }
+    }
+
+    ['income', 'downPayment', 'unitPrice'].forEach(id => {
+      const el = document.getElementById(id);
+      el.addEventListener('focus', () => {
+        el.value = el.value.replace(/\$/g, '').replace(/,/g, '');
+      });
+      el.addEventListener('blur', () => formatCurrencyInput(el));
+      el.addEventListener('input', () => formatCurrencyInput(el));
+    });
+
+    const interestInput = document.getElementById('interestRate');
+    interestInput.addEventListener('focus', () => {
+      interestInput.value = interestInput.value.replace('%', '');
+    });
+    interestInput.addEventListener('blur', () => formatPercentInput(interestInput));
+    interestInput.addEventListener('input', () => {
+      interestInput.value = interestInput.value.replace(/[^\d.]/g, '');
+    });
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const currentMonth = new Date().getMonth();
+      const monthsRemainingThisYear = 11 - currentMonth;
+
+      const data = {
+        ageGroup: form.age.value, // "85+" or "Under85"
+        income: parseFloat(form.income.value.replace(/[^\d.-]/g, '')) || 0,
+        filing: form.filing.value, // "single" or "joint"
+        unitPrice: parseFloat(form.unitPrice.value.replace(/[^\d.-]/g, '')),
+        downPayment: parseFloat(form.downPayment.value.replace(/[^\d.-]/g, '')),
+        rate: parseFloat(form.interestRate.value.replace(/[^\d.-]/g, '')) / 100,
+        termYears: parseInt(form.loanTerm.value)
+      };
+
+
+    let actualSavings = 0;
+
+    if (data.ageGroup === "85+" && data.income <= 75000) {
+      actualSavings += 8000;
+    }
+
+    if (
+      (data.filing === "single" && data.income <= 100000) ||
+      (data.filing === "joint" && data.income <= 200000)
+    ) {
+      actualSavings += 10000;
+    }
+
+      const principal = data.unitPrice - data.downPayment;
+      let balance = principal;
+      const yearlySchedule = [];
+
+      const totalMonths = data.termYears * 12;
+      const monthlyRate = data.rate / 12;
+
+      //const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) /
+       //                     (Math.pow(1 + monthlyRate, totalMonths) - 1);
+
+      // Core Inputs
+      const P = data.unitPrice - data.downPayment;   // Principal loan amount
+      const r = data.rate / 12;                      // Monthly interest rate (decimal form)
+      const n = data.termYears * 12;                 // Total loan term in months
+
+      // N and D from formula components
+      const N = r * Math.pow(1 + r, n);              // Numerator of amortization formula
+      const D = Math.pow(1 + r, n) - 1;              // Denominator of amortization formula
+
+      // Monthly Payment
+      const monthlyPayment = P * (N / D);            // PMT = P × (N / D)
+
+      // Optional: Raw % from form
+      const percentRate = data.rate * 100;           // For display/debug purposes
+
+      let cumulativeMonths = 0;
+      let previousInterest = 0;
+
+      for (let year = 1; year <= data.termYears; year++) {
+        const monthsThisYear = year === 1 ? monthsRemainingThisYear : 12;
+        let actualMonths = 0;
+
+        cumulativeMonths += monthsThisYear;
+        if (cumulativeMonths > n) cumulativeMonths = n;
+
+        // Apply exact Excel-style cumulative principal formula
+        const principalPaid = P - (P * ((Math.pow(1 + r, n) - Math.pow(1 + r, cumulativeMonths)) / (Math.pow(1 + r, n) - 1)));
+
+        // Interest is total paid - principal
+        const payments = monthlyPayment * cumulativeMonths;
+        const interest = payments - principalPaid;
+        const yearlyInterest = interest - previousInterest;
+        previousInterest = interest;
+
+        // Remaining balance
+        const calendarYear = 2024 + year;
+
+        let savingsCap = 0;
+        let appliedSavings = 0;
+
+        if (calendarYear >= 2025 && calendarYear <= 2028) {
+          savingsCap = 16000;
+          appliedSavings = Math.min(actualSavings, yearlyInterest);
+        }
+
+
+        const balance = Math.max(P - principalPaid - appliedSavings, 0);
+
+
+        yearlySchedule.push({
+          year,
+          calendarYear,
+          months: cumulativeMonths,
+          principal: principalPaid,
+          interest,
+          yearlyInterest,
+          payments,
+          balance,
+          savingsCap,
+          appliedSavings
+        });
+
+        if (balance <= 0) break;
+      }
+
+
+      let table = '<table><tr><th>Year</th><th>Yearly Interest</th><th>Savings</th></tr>';
+      yearlySchedule.slice(0, 4).forEach(row => {
+        table += `<tr>
+          <td>${row.year}</td>
+          <td>$${row.yearlyInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td>$${row.appliedSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        </tr>`;
+
+      });
+      table += '</table>';
+
+      output.innerHTML = table;
+      const csvButton = false; // Set to false to disable the download button
+
+      if (csvButton) {
+        const downloadBtn = document.createElement('button');
+        downloadBtn.textContent = 'Download Full Schedule (CSV)';
+        downloadBtn.className = 'download-btn';
+        downloadBtn.onclick = () => {
+          let csv = 'Year,Months,Principal,Payments,Total Interest,Yearly Interest,Balance,Savings Cap,Applied Savings\n';
+          yearlySchedule.forEach(row => {
+            csv += `${row.year},${row.months},${row.principal.toFixed(2)},${row.payments.toFixed(2)},${row.interest.toFixed(2)},${row.yearlyInterest.toFixed(2)},${row.balance.toFixed(2)},${row.savingsCap.toFixed(2)},${row.appliedSavings.toFixed(2)}\n`;
+          });
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'amortization_schedule.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+        output.appendChild(downloadBtn);
+      }
+
+      inputPage.style.display = 'none';
+      schedulePage.style.display = 'block';
+    });
+
+    function goBack() {
+      schedulePage.style.display = 'none';
+      inputPage.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
