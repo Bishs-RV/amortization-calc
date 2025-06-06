@@ -26,20 +26,20 @@
       background-color: var(--bish-gray);
       color: var(--bish-black);
       justify-content: flex-start;
-      height: 100vh; /* full viewport height */
+      /* height: 100vh; <-- REMOVE THIS */
+      min-height: 100vh; /* optional if you want to ensure at least full height */
     }
 
     *, *::before, *::after {
       box-sizing: border-box;
     }
 
-.container {
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+    .container {
+      max-width: 100%;
+      margin: 0 20px;
+      box-sizing: border-box;
+      overflow-y: auto; /* Allows scroll inside if needed */
+    }
 
     h2 {
       text-align: center;
@@ -119,14 +119,52 @@
       background-color: var(--bish-blue);
       color: var(--bish-white);
     }
+    .layout {
+      display: flex;
+      height: 100%;
+      min-height: 100vh;
+    }
+
+    .left-panel,
+    .right-panel {
+      flex: 1;
+      max-width: 50%;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .divider {
+      width: 1px;
+      background-color: #ccc;
+      margin: 0 10px;
+    }
+
+    @media (max-width: 768px) {
+    .layout {
+      flex-direction: column;
+    }
+
+    .left-panel,
+    .right-panel {
+      max-width: 100%;
+      padding: 10px;
+    }
+
+    .divider {
+      display: none;
+    }
+  }
+
   </style>
 </head>
 <body>
-  <div class="container" id="inputPage">
-    <h2>RV Loan Amortization Calculator</h2>
+<div class="layout">
+  <div class="container left-panel" id="inputPage">
+    
+<h2>RV Loan Amortization Calculator</h2>
     <form id="loanForm">
 
-      <div class="form-group">
+      <div class="form-group" hidden>
         <label for="age">Age:</label>
         <select id="age" name="age" required>
           <option value="Under85">Under 65 Years Old</option>
@@ -148,29 +186,31 @@
       </div>
 
       <div class="form-group">
-        <label for="unitPrice">Unit Price:</label>
+        <label for="unitPrice">Loan Amount:</label>
         <input type="text" id="unitPrice" name="unitPrice" required placeholder="$0">
       </div>
 
       <div class="form-group">
         <label for="interestRate">Interest Rate:</label>
-        <small><i>(Please Input Whole Number to Represent Percentage)</i></small>
         <input type="text" id="interestRate" name="interestRate" required placeholder="0%">
       </div>
 
       <div class="form-group">
-        <label for="loanTerm">Loan Term (years):</label>
+        <label for="loanTerm">Loan Term <i>(in years):</i></label>
         <input type="number" id="loanTerm" name="loanTerm" required placeholder="0">
       </div>
 
-      <button type="submit">Continue to Schedule</button>
+      <button type="submit">Calculate Savings</button>
     </form>
   </div>
 
-  <div class="container" id="schedulePage" style="display: none;">
+  <div class="divider"></div>
+  <div class="container right-panel" id="schedulePage">
+
     <h2>Amortization Schedule</h2>
     <div id="scheduleOutput"></div>
-    <button onclick="goBack()">Back</button>
+
+    </div>
   </div>
 
   <script>
@@ -356,8 +396,6 @@
         output.appendChild(downloadBtn);
       }
 
-      inputPage.style.display = 'none';
-      schedulePage.style.display = 'block';
     });
 
     function goBack() {
