@@ -20,12 +20,17 @@
     }
 
     body {
-      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
       background-color: var(--bish-gray);
       color: var(--bish-black);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      height: 100vh; /* full viewport height */
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
     }
 
 .container {
