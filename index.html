@@ -26,8 +26,7 @@
       background-color: var(--bish-gray);
       color: var(--bish-black);
       justify-content: flex-start;
-      /* height: 100vh; <-- REMOVE THIS */
-      min-height: 100vh; /* optional if you want to ensure at least full height */
+      min-height: 100vh;
     }
 
     *, *::before, *::after {
@@ -38,7 +37,7 @@
       max-width: 100%;
       margin: 0 20px;
       box-sizing: border-box;
-      overflow-y: auto; /* Allows scroll inside if needed */
+      overflow-y: auto;
     }
 
     h2 {
@@ -119,16 +118,23 @@
       background-color: var(--bish-blue);
       color: var(--bish-white);
     }
-    .layout {
+
+    .page-wrapper {
       display: flex;
-      height: 100%;
+      flex-direction: column;
       min-height: 100vh;
     }
+
+    .layout {
+      flex-grow: 1;
+      display: flex;
+    }
+
+
 
     .left-panel,
     .right-panel {
       flex: 1;
-      max-width: 50%;
       padding: 20px;
       overflow-y: auto;
     }
@@ -158,8 +164,9 @@
   </style>
 </head>
 <body>
-<div class="layout">
-  <div class="container left-panel" id="inputPage">
+<div class="page-wrapper">
+  <div class="layout">
+     <div class="container left-panel" id="inputPage">
     
 <h2>RV Loan Amortization Calculator</h2>
     <form id="loanForm">
@@ -206,12 +213,16 @@
 
   <div class="divider"></div>
   <div class="container right-panel" id="schedulePage">
-
-    <h2>Amortization Schedule</h2>
+    <h2>Estimated Interest and Savings</h2>
     <div id="scheduleOutput"></div>
-
+    <h2>Estimated Tax Impact</h2>
+    <div id="taxImpactOutput"></div>
     </div>
   </div>
+  <div style="width: 100%; text-align: center; font-size: 0.85rem; color: #666; padding: 20px 10px; box-sizing: border-box;">
+    <p><strong>Disclaimer:</strong> This calculator is provided for informational purposes only and does not constitute financial or tax advice. Please consult with a qualified financial advisor or tax professional for personalized guidance.</p>
+  </div>
+</div>
 
   <script>
     const form = document.getElementById('loanForm');
@@ -256,6 +267,10 @@
     });
 
     form.addEventListener('submit', function(e) {
+      output.innerHTML = '';
+      output.style.display = 'none';
+      void output.offsetHeight; // forces a reflow
+      output.style.display = '';
       e.preventDefault();
 
       const currentMonth = new Date().getMonth();
@@ -273,8 +288,12 @@
 
     let actualSavings = 0;
 
-    if (data.ageGroup === "85+" && data.income <= 75000) {
+    if (data.ageGroup === "85+" && data.income <= 75000 && data.filing === "single") {
       actualSavings += 8000;
+    }
+
+    if (data.ageGroup === "85+" && data.income <= 75000 && data.filing === "joint") {
+      actualSavings += 160000;
     }
 
     if (
@@ -290,9 +309,6 @@
 
       const totalMonths = data.termYears * 12;
       const monthlyRate = data.rate / 12;
-
-      //const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) /
-       //                     (Math.pow(1 + monthlyRate, totalMonths) - 1);
 
       // Core Inputs
       const P = data.unitPrice;   // Principal loan amount
@@ -360,7 +376,7 @@
       }
 
 
-      let table = '<table><tr><th>Year</th><th>Yearly Interest</th><th>Savings</th></tr>';
+      let table = '<table><tr><th>Year</th><th>Yearly Interest</th><th>Estimated Savings</th></tr>';
       yearlySchedule
         .filter(row => row.calendarYear >= 2025 && row.calendarYear <= 2028)
         .forEach(row => {
@@ -374,6 +390,221 @@
       table += '</table>';
 
       output.innerHTML = table;
+      output.style.display = 'none';
+      void output.offsetHeight;
+      output.style.display = '';
+
+      // --- FIXED Tax Bracket Impact Display ---
+const taxBracketTable = [
+  { filing: "single", min: 0, max: 11925, rate: 0.10 },
+  { filing: "single", min: 11925, max: 48475, rate: 0.12 },
+  { filing: "single", min: 48475, max: 103350, rate: 0.22 },
+  { filing: "single", min: 103350, max: 197300, rate: 0.24 },
+  { filing: "single", min: 197300, max: 250525, rate: 0.32 },
+  { filing: "single", min: 250525, max: 626350, rate: 0.35 },
+  { filing: "single", min: 626350, max: Infinity, rate: 0.37 },
+
+  { filing: "joint", min: 0, max: 23580, rate: 0.10 },
+  { filing: "joint", min: 23580, max: 96950, rate: 0.12 },
+  { filing: "joint", min: 96950, max: 206700, rate: 0.22 },
+  { filing: "joint", min: 206700, max: 394600, rate: 0.24 },
+  { filing: "joint", min: 394600, max: 501050, rate: 0.32 },
+  { filing: "joint", min: 501050, max: 751600, rate: 0.35 },
+  { filing: "joint", min: 751600, max: Infinity, rate: 0.37 }
+];
+
+function getAGIPercent(agi) {
+  const brackets = [
+    { min: 0, max: 20000, rate: 0 },
+    { min: 20000, max: 50000, rate: 0.03 },
+    { min: 50000, max: 100000, rate: 0.06 },
+    { min: 100000, max: 200000, rate: 0.10 },
+    { min: 200000, max: 500000, rate: 0.15 },
+    { min: 500000, max: Infinity, rate: 0.22 }
+  ];
+  for (const b of brackets) {
+    if (agi >= b.min && agi < b.max) return b.rate;
+  }
+  return brackets[brackets.length - 1].rate;
+}
+
+function calculateTax(income, filing) {
+  const brackets = taxBracketTable.filter(b => b.filing === filing);
+  let totalTax = 0;
+
+  for (const bracket of brackets) {
+    if (income <= bracket.min) break;
+    const taxableInBracket = Math.min(income, bracket.max) - bracket.min;
+    if (taxableInBracket > 0) {
+      totalTax += taxableInBracket * bracket.rate;
+    }
+  }
+
+  return totalTax;
+}
+
+
+function getTaxBrackets(filing) {
+  if (filing === 'single') {
+    return [
+      { min: 0, max: 11925, rate: 0.10 },
+      { min: 11925, max: 48475, rate: 0.12 },
+      { min: 48475, max: 103350, rate: 0.22 },
+      { min: 103350, max: 197300, rate: 0.24 },
+      { min: 197300, max: 250525, rate: 0.32 },
+      { min: 250525, max: 626350, rate: 0.35 },
+      { min: 626350, max: 1_000_000_000_000, rate: 0.37 }
+    ];
+  } else if (filing === 'joint') {
+    return [
+      { min: 0, max: 23580, rate: 0.10 },
+      { min: 23580, max: 96950, rate: 0.12 },
+      { min: 96950, max: 206700, rate: 0.22 },
+      { min: 206700, max: 394600, rate: 0.24 },
+      { min: 394600, max: 501050, rate: 0.32 },
+      { min: 501050, max: 751600, rate: 0.35 },
+      { min: 751600, max: 1_000_000_000_000, rate: 0.37 }
+    ];
+  }
+
+  throw new Error("Filing status must be 'single' or 'joint'");
+}
+
+
+function calculateTaxBreakdownWithoutLoanInterest(adjustedIncome, filing) {
+  const brackets = getTaxBrackets(filing);
+  const breakdown = [];
+
+  // From highest to lowest
+  const reversedBrackets = [...brackets].reverse();
+
+  for (const bracket of reversedBrackets) {
+    const { min, max, rate } = bracket;
+
+    if (adjustedIncome <= min) {
+      breakdown.unshift({
+        rate,
+        amount: 0,
+        tax: 0
+      });
+      continue;
+    }
+
+    const amountInBracket = Math.max(0, Math.min(adjustedIncome, max) - min);
+    const tax = amountInBracket * rate;
+
+    breakdown.unshift({
+      rate,
+      amount: amountInBracket,
+      tax
+    });
+  }
+
+  return breakdown;
+}
+
+function calculateTaxBreakdownWithLoanInterest(adjustedIncome, year1LoanInterest, filing) {
+  const brackets = getTaxBrackets(filing);
+  const breakdown = [];
+
+  const reversedBrackets = [...brackets].reverse();
+
+  for (const bracket of reversedBrackets) {
+    const { min, max, rate } = bracket;
+
+    if ((adjustedIncome - year1LoanInterest) <= min) {
+      breakdown.unshift({
+        rate,
+        amount: 0,
+        tax: 0
+      });
+      continue;
+    }
+
+    const amountInBracket = Math.max(0, Math.min(adjustedIncome - year1LoanInterest, max) - min);
+    const tax = amountInBracket * rate;
+
+    breakdown.unshift({
+      rate,
+      amount: amountInBracket,
+      tax
+    });
+  }
+
+  return breakdown;
+}
+
+
+
+
+const agiCapPercent = getAGIPercent(data.income);
+const agiCapAmount = data.income * agiCapPercent;
+const adjustedIncome = data.income - agiCapAmount;
+
+let estimatedTaxSavings = 0;
+const savingsYears = yearlySchedule.filter(row => row.calendarYear >= 2025 && row.calendarYear <= 2028);
+savingsYears.forEach(row => {
+  estimatedTaxSavings += row.appliedSavings;
+});
+
+let multiYearTaxSummary = '';
+let totalVerifiedTaxSavings = 0;
+
+multiYearTaxSummary = `
+  <table>
+    <tr>
+      <th>Year</th>
+      <th>Estimated Tax Savings</th>
+      <th>Estimated Monthly Benefit</th>
+    </tr>
+`;
+
+savingsYears.forEach(row => {
+  const year = row.calendarYear;
+  const interest = row.appliedSavings;
+  const deductible = Math.min(interest, agiCapAmount);
+
+  const taxBefore = calculateTax(adjustedIncome, data.filing);
+  const taxAfter = calculateTax(adjustedIncome - deductible, data.filing);
+  const taxSaved = taxBefore - taxAfter;
+  const monthlyBenefit = taxSaved / 12;
+
+  totalVerifiedTaxSavings += taxSaved;
+
+  multiYearTaxSummary += `
+    <tr>
+      <td>${year}</td>
+      <td>$${taxSaved.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+      <td>$${monthlyBenefit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+    </tr>
+  `;
+});
+
+// Add totals row at the bottom
+const avgMonthlyBenefit = totalVerifiedTaxSavings / (4 * 12); // 4 years × 12 months
+
+multiYearTaxSummary += `
+  <tr style="font-weight: bold; background-color: #e0e0e0;">
+    <td>Total</td>
+    <td>$${totalVerifiedTaxSavings.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+    <td>Avg: $${avgMonthlyBenefit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+  </tr>
+</table>`;
+
+document.getElementById("taxImpactOutput").innerHTML = multiYearTaxSummary;
+
+
+
+
+// Debug
+console.log("=== Tax Calculation Debug ===");
+console.log("Original Income:", data.income.toLocaleString());
+console.log("AGI Cap %:", (agiCapPercent * 100).toFixed(2) + "%");
+console.log("AGI Cap Amount:", agiCapAmount.toLocaleString());
+console.log("Adjusted Income:", adjustedIncome.toLocaleString());
+console.log("Total Loan Interest Savings:", estimatedTaxSavings.toLocaleString());
+
+
       const csvButton = false; // Set to false to disable the download button
 
       if (csvButton) {
