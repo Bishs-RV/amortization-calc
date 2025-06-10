@@ -534,6 +534,21 @@ function calculateTaxBreakdownWithLoanInterest(adjustedIncome, year1LoanInterest
   return breakdown;
 }
 
+function logTaxBreakdownDetails(adjustedIncome, deductible, filing) {
+  console.group("Tax Bracket Breakdown WITHOUT Loan Interest");
+  const withoutLoan = calculateTaxBreakdownWithoutLoanInterest(adjustedIncome, filing);
+  withoutLoan.forEach(b => {
+    console.log(`Rate: ${(b.rate * 100).toFixed(2)}% | Amount: $${b.amount.toFixed(2)} | Tax: $${b.tax.toFixed(2)}`);
+  });
+  console.groupEnd();
+
+  console.group("Tax Bracket Breakdown WITH Loan Interest");
+  const withLoan = calculateTaxBreakdownWithLoanInterest(adjustedIncome, deductible, filing);
+  withLoan.forEach(b => {
+    console.log(`Rate: ${(b.rate * 100).toFixed(2)}% | Amount: $${b.amount.toFixed(2)} | Tax: $${b.tax.toFixed(2)}`);
+  });
+  console.groupEnd();
+}
 
 
 
@@ -593,16 +608,87 @@ multiYearTaxSummary += `
 
 document.getElementById("taxImpactOutput").innerHTML = multiYearTaxSummary;
 
+console.log("===== FULL DEBUG LOG START =====");
 
+// 1. INPUTS
+console.log("Input Data:");
+console.table({
+  Income: data.income,
+  FilingStatus: data.filing,
+  InterestRate: data.rate,
+  LoanTermYears: data.termYears,
+  AdjustedIncome: adjustedIncome,
+  AGI_CapPercent: agiCapPercent,
+  AGI_CapAmount: agiCapAmount
+});
 
+// 2. TAX BRACKETS
+console.log(`Tax Brackets (${data.filing}):`);
+console.table(getTaxBrackets(data.filing).map(b => ({
+  Min: b.min,
+  Max: b.max,
+  Rate: (b.rate * 100).toFixed(2) + '%'
+})));
 
-// Debug
-console.log("=== Tax Calculation Debug ===");
-console.log("Original Income:", data.income.toLocaleString());
-console.log("AGI Cap %:", (agiCapPercent * 100).toFixed(2) + "%");
-console.log("AGI Cap Amount:", agiCapAmount.toLocaleString());
-console.log("Adjusted Income:", adjustedIncome.toLocaleString());
-console.log("Total Loan Interest Savings:", estimatedTaxSavings.toLocaleString());
+// 3. AMORTIZATION YEARLY TABLE
+console.log("Amortization Schedule by Year:");
+console.table(yearlySchedule.map(row => ({
+  Year: row.calendarYear,
+  Months: row.months,
+  PrincipalPaid: row.principal.toFixed(2),
+  YearlyInterest: row.yearlyInterest.toFixed(2),
+  AppliedSavings: row.appliedSavings.toFixed(2),
+  Balance: row.balance.toFixed(2)
+})));
+
+// 4. TAX SAVINGS PER YEAR
+console.log("Tax Savings Per Year:");
+savingsYears.forEach(row => {
+  const deductible = Math.min(row.appliedSavings, agiCapAmount);
+  const taxBefore = calculateTax(adjustedIncome, data.filing);
+  const taxAfter = calculateTax(adjustedIncome - deductible, data.filing);
+  const taxSaved = taxBefore - taxAfter;
+  const monthlyBenefit = taxSaved / 12;
+
+  console.group(`Year ${row.calendarYear}`);
+  console.log("Deductible Interest:", deductible.toFixed(2));
+  console.log("Tax Before:", taxBefore.toFixed(2));
+  console.log("Tax After:", taxAfter.toFixed(2));
+  console.log("Tax Saved:", taxSaved.toFixed(2));
+  console.log("Monthly Benefit:", monthlyBenefit.toFixed(2));
+  console.groupEnd();
+});
+console.group("=== Detailed Tax Breakdown Per Year ===");
+savingsYears.forEach(row => {
+  const year = row.calendarYear;
+  const deductible = Math.min(row.appliedSavings, agiCapAmount);
+
+  console.group(`Year: ${year}`);
+  console.log("Deductible Interest:", `$${deductible.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+  console.log("Adjusted Income:", `$${adjustedIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+
+  // WITHOUT loan interest
+  console.group("Tax Brackets WITHOUT Loan Interest");
+  const withoutLoan = calculateTaxBreakdownWithoutLoanInterest(adjustedIncome, data.filing);
+  withoutLoan.forEach(b => {
+    console.log(`Rate: ${(b.rate * 100).toFixed(2)}% | Amount: $${b.amount.toFixed(2)} | Tax: $${b.tax.toFixed(2)}`);
+  });
+  console.groupEnd();
+
+  // WITH loan interest
+  console.group("Tax Brackets WITH Loan Interest");
+  const withLoan = calculateTaxBreakdownWithLoanInterest(adjustedIncome, deductible, data.filing);
+  withLoan.forEach(b => {
+    console.log(`Rate: ${(b.rate * 100).toFixed(2)}% | Amount: $${b.amount.toFixed(2)} | Tax: $${b.tax.toFixed(2)}`);
+  });
+  console.groupEnd();
+
+  console.groupEnd(); // end Year
+});
+console.groupEnd();
+
+console.log("===== FULL DEBUG LOG END =====");
+
 
 
       const csvButton = false; // Set to false to disable the download button
