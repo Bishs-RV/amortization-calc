@@ -23,7 +23,7 @@
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      background-color: var(--bish-gray);
+      background-color: var(--bish-white);
       color: var(--bish-black);
       justify-content: flex-start;
       min-height: 100vh;
@@ -213,7 +213,7 @@
 
   <div class="divider"></div>
   <div class="container right-panel" id="schedulePage">
-    <h2>Estimated Interest and Savings</h2>
+    <h2>Estimated Payments & Interest</h2>
     <div id="scheduleOutput"></div>
     <h2>Estimated Tax Impact</h2>
     <div id="taxImpactOutput"></div>
@@ -340,6 +340,7 @@
 
         // Interest is total paid - principal
         const payments = monthlyPayment * cumulativeMonths;
+        const paymentsThisYear = monthlyPayment * monthsThisYear;
         const interest = payments - principalPaid;
         const yearlyInterest = interest - previousInterest;
         previousInterest = interest;
@@ -359,33 +360,35 @@
         const balance = Math.max(P - principalPaid - appliedSavings, 0);
 
 
-        yearlySchedule.push({
-          year,
-          calendarYear,
-          months: cumulativeMonths,
-          principal: principalPaid,
-          interest,
-          yearlyInterest,
-          payments,
-          balance,
-          savingsCap,
-          appliedSavings
-        });
+      yearlySchedule.push({
+        year,
+        calendarYear,
+        months: cumulativeMonths,
+        monthsThisYear,
+        principal: principalPaid,
+        interest,
+        yearlyInterest,
+        payments,
+        paymentsThisYear, // ✅ New field
+        balance,
+        savingsCap,
+        appliedSavings
+      });
 
         if (balance <= 0) break;
       }
 
 
-      let table = '<table><tr><th>Year</th><th>Yearly Interest</th><th>Estimated Savings</th></tr>';
+      let table = '<table><tr><th>Year</th><th>Estimated Avg. Monthly Payment</th><th>Estimated Interest Deduction</th></tr>';
       yearlySchedule
         .filter(row => row.calendarYear >= 2025 && row.calendarYear <= 2028)
         .forEach(row => {
-        table += `<tr>
-        <td>${row.calendarYear}</td>
-          <td>$${row.yearlyInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          <td>$${row.appliedSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        </tr>`;
-
+          const avgMonthlyPayment = row.paymentsThisYear / row.monthsThisYear;
+          table += `<tr>
+            <td>${row.calendarYear}</td>
+            <td>$${avgMonthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td>$${row.appliedSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>`;
       });
       table += '</table>';
 
@@ -577,7 +580,7 @@ multiYearTaxSummary = `
 savingsYears.forEach(row => {
   const year = row.calendarYear;
   const interest = row.appliedSavings;
-  const deductible = Math.min(interest, agiCapAmount);
+  const deductible = interest;
 
   const taxBefore = calculateTax(adjustedIncome, data.filing);
   const taxAfter = calculateTax(adjustedIncome - deductible, data.filing);
