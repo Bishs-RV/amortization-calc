@@ -638,7 +638,7 @@ multiYearTaxSummary = `
 savingsYears.forEach(row => {
   const year = row.calendarYear;
   const interest = row.appliedSavings;
-  const deductible = Math.min(interest, agiCapAmount);
+  const deductible = interest;
 
   const taxBefore = calculateTax(adjustedIncome, data.filing);
   const taxAfter = calculateTax(adjustedIncome - deductible, data.filing);
@@ -670,6 +670,17 @@ multiYearTaxSummary += `
 document.getElementById("taxImpactOutput").innerHTML = multiYearTaxSummary;
 
 console.log("===== FULL DEBUG LOG START =====");
+console.log("AGI Cap Amount:", agiCapAmount);
+const firstRow = savingsYears[0];
+const deductible = Math.min(firstRow.appliedSavings, agiCapAmount);
+const effectiveIncome = adjustedIncome - deductible;
+const bracketsUsed = getTaxBrackets(data.filing).filter(b => effectiveIncome >= b.min && effectiveIncome < b.max);
+
+if (bracketsUsed.length > 0) {
+  console.log("Tax Bracket Applied:", (bracketsUsed[0].rate * 100).toFixed(2) + '%');
+} else {
+  console.log("Tax Bracket Applied: Could not determine bracket");
+}
 
 // 1. INPUTS
 console.log("Input Data:");
