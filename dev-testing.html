@@ -641,7 +641,7 @@ multiYearTaxSummary = `
     </tr>
 `;
 
-savingsYears.forEach(row => {
+savingsYears.forEach((row, index) => {
   const year = row.calendarYear;
   const interest = row.appliedSavings;
   const deductible = interest;
@@ -649,7 +649,10 @@ savingsYears.forEach(row => {
   const taxBefore = calculateTax(adjustedIncome, data.filing);
   const taxAfter = calculateTax(adjustedIncome - deductible, data.filing);
   const taxSaved = taxBefore - taxAfter;
-  const monthlyBenefit = taxSaved / 12;
+
+  const isFirstSavingsYear = (index === 0);
+  const monthsDivisor = isFirstSavingsYear ? row.monthsThisYear : 12;
+  const monthlyBenefit = taxSaved / monthsDivisor;
 
   totalVerifiedTaxSavings += taxSaved;
 
