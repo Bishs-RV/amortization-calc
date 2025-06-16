@@ -465,8 +465,8 @@ const taxBracketTable = [
   { filing: "single", min: 250525, max: 626350, rate: 0.35 },
   { filing: "single", min: 626350, max: Infinity, rate: 0.37 },
 
-  { filing: "joint", min: 0, max: 23580, rate: 0.10 },
-  { filing: "joint", min: 23580, max: 96950, rate: 0.12 },
+  { filing: "joint", min: 0, max: 23850, rate: 0.10 },
+  { filing: "joint", min: 23850, max: 96950, rate: 0.12 },
   { filing: "joint", min: 96950, max: 206700, rate: 0.22 },
   { filing: "joint", min: 206700, max: 394600, rate: 0.24 },
   { filing: "joint", min: 394600, max: 501050, rate: 0.32 },
@@ -518,8 +518,8 @@ function getTaxBrackets(filing) {
     ];
   } else if (filing === 'joint') {
     return [
-      { min: 0, max: 23580, rate: 0.10 },
-      { min: 23580, max: 96950, rate: 0.12 },
+      { min: 0, max: 23850, rate: 0.10 },
+      { min: 23850, max: 96950, rate: 0.12 },
       { min: 96950, max: 206700, rate: 0.22 },
       { min: 206700, max: 394600, rate: 0.24 },
       { min: 394600, max: 501050, rate: 0.32 },
@@ -611,11 +611,17 @@ function logTaxBreakdownDetails(adjustedIncome, deductible, filing) {
   console.groupEnd();
 }
 
+function getStandardDeduction(filingStatus) {
+  if (filingStatus === "joint") return 30000;
+  if (filingStatus === "single") return 15000;
+  return 0;
+}
 
 
 const agiCapPercent = getAGIPercent(data.income);
 const agiCapAmount = data.income * agiCapPercent;
-const adjustedIncome = data.income - agiCapAmount;
+const standardDeduction = getStandardDeduction(data.filing);
+const adjustedIncome = data.income - agiCapAmount - standardDeduction;
 
 let estimatedTaxSavings = 0;
 const savingsYears = yearlySchedule.filter(row => row.calendarYear >= 2025 && row.calendarYear <= 2028);
@@ -635,7 +641,7 @@ multiYearTaxSummary = `
     </tr>
 `;
 
-savingsYears.forEach(row => {
+savingsYears.forEach((row, index) => {
   const year = row.calendarYear;
   const interest = row.appliedSavings;
   const deductible = interest;
@@ -643,7 +649,10 @@ savingsYears.forEach(row => {
   const taxBefore = calculateTax(adjustedIncome, data.filing);
   const taxAfter = calculateTax(adjustedIncome - deductible, data.filing);
   const taxSaved = taxBefore - taxAfter;
-  const monthlyBenefit = taxSaved / 12;
+
+  const isFirstSavingsYear = (index === 0);
+  const monthsDivisor = isFirstSavingsYear ? row.monthsThisYear : 12;
+  const monthlyBenefit = taxSaved / monthsDivisor;
 
   totalVerifiedTaxSavings += taxSaved;
 
